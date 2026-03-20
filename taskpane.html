@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>DepoDirect Audio Player</title>
+  <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', -apple-system, sans-serif;
+      font-size: 13px;
+      color: #323130;
+      background: #faf9f8;
+      padding: 12px;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #edebe9;
+    }
+
+    .header h1 {
+      font-size: 16px;
+      font-weight: 600;
+      color: #0078d4;
+    }
+
+    .logo {
+      width: 24px; height: 24px;
+      background: #0078d4;
+      border-radius: 4px;
+      display: flex; align-items: center; justify-content: center;
+      color: white; font-weight: 700; font-size: 11px;
+    }
+
+    /* File inputs */
+    .file-section {
+      margin-bottom: 10px;
+    }
+
+    .file-section label {
+      display: block;
+      font-weight: 600;
+      font-size: 12px;
+      margin-bottom: 4px;
+      color: #605e5c;
+    }
+
+    .file-input-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .file-btn {
+      background: #0078d4;
+      color: white;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 4px;
+      font-size: 12px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .file-btn:hover { background: #106ebe; }
+
+    .file-btn.loaded {
+      background: #107c10;
+    }
+
+    .file-name {
+      font-size: 11px;
+      color: #605e5c;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      flex: 1;
+    }
+
+    /* Player controls */
+    .player-section {
+      background: white;
+      border: 1px solid #edebe9;
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 10px;
+    }
+
+    .now-playing {
+      font-size: 11px;
+      color: #605e5c;
+      margin-bottom: 6px;
+      min-height: 16px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .now-playing strong {
+      color: #323130;
+    }
+
+    .time-display {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: #605e5c;
+      margin-bottom: 4px;
+    }
+
+    .progress-bar {
+      width: 100%;
+      height: 6px;
+      background: #edebe9;
+      border-radius: 3px;
+      margin-bottom: 10px;
+      cursor: pointer;
+      position: relative;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: #0078d4;
+      border-radius: 3px;
+      width: 0%;
+      transition: width 0.1s linear;
+    }
+
+    .controls {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .ctrl-btn {
+      background: none;
+      border: 1px solid #c8c6c4;
+      border-radius: 4px;
+      padding: 6px 10px;
+      cursor: pointer;
+      font-size: 14px;
+      color: #323130;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 36px;
+    }
+
+    .ctrl-btn:hover { background: #f3f2f1; }
+
+    .ctrl-btn.play-btn {
+      background: #0078d4;
+      color: white;
+      border-color: #0078d4;
+      padding: 8px 16px;
+      font-size: 16px;
+    }
+
+    .ctrl-btn.play-btn:hover { background: #106ebe; }
+
+    .speed-control {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      margin-left: auto;
+    }
+
+    .speed-label {
+      font-size: 11px;
+      color: #605e5c;
+    }
+
+    .speed-select {
+      font-size: 12px;
+      padding: 3px 6px;
+      border: 1px solid #c8c6c4;
+      border-radius: 4px;
+      background: white;
+    }
+
+    /* Paragraph list */
+    .para-section {
+      flex: 1;
+      overflow-y: auto;
+      border: 1px solid #edebe9;
+      border-radius: 8px;
+      background: white;
+    }
+
+    .para-section-header {
+      position: sticky;
+      top: 0;
+      background: #faf9f8;
+      padding: 8px 10px;
+      font-weight: 600;
+      font-size: 12px;
+      color: #605e5c;
+      border-bottom: 1px solid #edebe9;
+      z-index: 1;
+    }
+
+    .para-item {
+      padding: 6px 10px;
+      border-bottom: 1px solid #f3f2f1;
+      cursor: pointer;
+      font-size: 12px;
+      display: flex;
+      gap: 8px;
+      align-items: flex-start;
+    }
+
+    .para-item:hover { background: #f3f2f1; }
+
+    .para-item.active {
+      background: #e1f0ff;
+      border-left: 3px solid #0078d4;
+    }
+
+    .para-item.no-timestamp {
+      color: #a19f9d;
+      cursor: default;
+    }
+
+    .para-loc {
+      font-size: 10px;
+      color: #a19f9d;
+      white-space: nowrap;
+      min-width: 50px;
+    }
+
+    .para-time {
+      font-size: 10px;
+      color: #0078d4;
+      white-space: nowrap;
+      min-width: 45px;
+    }
+
+    .para-text {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* Status */
+    .status-bar {
+      margin-top: 8px;
+      font-size: 11px;
+      color: #605e5c;
+      text-align: center;
+    }
+
+    .status-bar.error { color: #a4262c; }
+    .status-bar.success { color: #107c10; }
+
+    /* Empty state */
+    .empty-state {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 20px;
+      color: #605e5c;
+    }
+
+    .empty-state p { margin-bottom: 8px; }
+    .empty-state .hint { font-size: 11px; color: #a19f9d; }
+
+    /* Keyboard shortcuts info */
+    .shortcuts {
+      margin-top: 8px;
+      padding: 8px 10px;
+      background: #f3f2f1;
+      border-radius: 6px;
+      font-size: 11px;
+      color: #605e5c;
+    }
+
+    .shortcuts kbd {
+      background: white;
+      border: 1px solid #c8c6c4;
+      border-radius: 3px;
+      padding: 1px 4px;
+      font-family: inherit;
+      font-size: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="logo">DD</div>
+    <h1>Audio Player</h1>
+  </div>
+
+  <!-- File inputs -->
+  <div class="file-section">
+    <label>Timestamp Map (JSON from QC tool)</label>
+    <div class="file-input-wrapper">
+      <button class="file-btn" id="btn-load-map" onclick="document.getElementById('input-map').click()">Load Map</button>
+      <span class="file-name" id="map-filename">No file loaded</span>
+      <input type="file" id="input-map" accept=".json" style="display:none"/>
+    </div>
+  </div>
+
+  <div class="file-section">
+    <label>Audio File (MP3/WAV from deposition)</label>
+    <div class="file-input-wrapper">
+      <button class="file-btn" id="btn-load-audio" onclick="document.getElementById('input-audio').click()">Load Audio</button>
+      <span class="file-name" id="audio-filename">No file loaded</span>
+      <input type="file" id="input-audio" accept=".mp3,.wav,.m4a,.ogg,.webm" style="display:none"/>
+    </div>
+  </div>
+
+  <!-- Player controls (hidden until files loaded) -->
+  <div class="player-section" id="player-section" style="display:none">
+    <div class="now-playing" id="now-playing">Click a paragraph to start playback</div>
+    <div class="time-display">
+      <span id="time-current">0:00</span>
+      <span id="time-total">0:00</span>
+    </div>
+    <div class="progress-bar" id="progress-bar">
+      <div class="progress-fill" id="progress-fill"></div>
+    </div>
+    <div class="controls">
+      <button class="ctrl-btn" id="btn-back" title="Back 5 seconds">-5s</button>
+      <button class="ctrl-btn play-btn" id="btn-play" title="Play / Pause">&#9654;</button>
+      <button class="ctrl-btn" id="btn-forward" title="Forward 5 seconds">+5s</button>
+      <div class="speed-control">
+        <span class="speed-label">Speed:</span>
+        <select class="speed-select" id="speed-select">
+          <option value="0.5">0.5x</option>
+          <option value="0.75">0.75x</option>
+          <option value="1" selected>1.0x</option>
+          <option value="1.25">1.25x</option>
+          <option value="1.5">1.5x</option>
+          <option value="2">2.0x</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- Paragraph list -->
+  <div class="para-section" id="para-section" style="display:none">
+    <div class="para-section-header" id="para-header">Paragraphs</div>
+    <div id="para-list"></div>
+  </div>
+
+  <!-- Empty state -->
+  <div class="empty-state" id="empty-state">
+    <p>Load a timestamp map and audio file to get started.</p>
+    <p class="hint">The timestamp map JSON is generated by the DepoDirect QC tool alongside the corrected transcript.</p>
+  </div>
+
+  <!-- Keyboard shortcuts -->
+  <div class="shortcuts" id="shortcuts" style="display:none">
+    <kbd>Space</kbd> Play/Pause &nbsp;
+    <kbd>&#8592;</kbd> Back 5s &nbsp;
+    <kbd>&#8594;</kbd> Forward 5s &nbsp;
+    <kbd>&#8593;/&#8595;</kbd> Prev/Next paragraph
+  </div>
+
+  <div class="status-bar" id="status-bar"></div>
+
+  <script>
+    // ===== State =====
+    let timestampMap = null;
+    let paragraphs = [];
+    let audio = new Audio();
+    let activeParagraphIndex = -1;
+    let isPlaying = false;
+    let officeReady = false;
+
+    // ===== Office.js initialization =====
+    Office.onReady(function(info) {
+      officeReady = true;
+      setStatus('Ready. Load files to begin.', 'success');
+
+      // Listen for selection changes in the document
+      if (info.host === Office.HostType.Word) {
+        Office.context.document.addHandlerAsync(
+          Office.EventType.DocumentSelectionChanged,
+          onDocumentSelectionChanged
+        );
+      }
+    });
+
+    // ===== File input handlers =====
+    document.getElementById('input-map').addEventListener('change', function(e) {
+      var file = e.target.files[0];
+      if (!file) return;
+
+      var reader = new FileReader();
+      reader.onload = function(ev) {
+        try {
+          var data = JSON.parse(ev.target.result);
+          if (data.paragraphs && Array.isArray(data.paragraphs)) {
+            timestampMap = data;
+            paragraphs = data.paragraphs;
+            document.getElementById('map-filename').textContent = file.name;
+            document.getElementById('btn-load-map').className = 'file-btn loaded';
+            document.getElementById('btn-load-map').textContent = 'Loaded';
+            buildParagraphList();
+            checkReady();
+            setStatus('Timestamp map loaded: ' + paragraphs.length + ' paragraphs', 'success');
+          } else {
+            setStatus('Invalid timestamp map format. Expected {paragraphs: [...]}', 'error');
+          }
+        } catch (err) {
+          setStatus('Error parsing JSON: ' + err.message, 'error');
+        }
+      };
+      reader.readAsText(file);
+    });
+
+    document.getElementById('input-audio').addEventListener('change', function(e) {
+      var file = e.target.files[0];
+      if (!file) return;
+
+      var url = URL.createObjectURL(file);
+      audio.src = url;
+
+      audio.addEventListener('loadedmetadata', function() {
+        document.getElementById('time-total').textContent = formatTime(audio.duration);
+        document.getElementById('audio-filename').textContent = file.name;
+        document.getElementById('btn-load-audio').className = 'file-btn loaded';
+        document.getElementById('btn-load-audio').textContent = 'Loaded';
+        checkReady();
+        setStatus('Audio loaded: ' + formatTime(audio.duration), 'success');
+      }, { once: true });
+
+      audio.addEventListener('error', function() {
+        setStatus('Error loading audio file.', 'error');
+      }, { once: true });
+    });
+
+    // ===== Check if both files are loaded =====
+    function checkReady() {
+      if (timestampMap && audio.src) {
+        document.getElementById('player-section').style.display = 'block';
+        document.getElementById('para-section').style.display = 'flex';
+        document.getElementById('para-section').style.flexDirection = 'column';
+        document.getElementById('empty-state').style.display = 'none';
+        document.getElementById('shortcuts').style.display = 'block';
+      }
+    }
+
+    // ===== Build paragraph list =====
+    function buildParagraphList() {
+      var list = document.getElementById('para-list');
+      list.innerHTML = '';
+
+      var timestamped = paragraphs.filter(function(p) { return p.timestamp_start !== null; });
+      document.getElementById('para-header').textContent =
+        'Paragraphs (' + timestamped.length + ' with timestamps)';
+
+      for (var i = 0; i < paragraphs.length; i++) {
+        var p = paragraphs[i];
+        if (!p.is_testimony && p.timestamp_start === null) continue;
+
+        var div = document.createElement('div');
+        div.className = 'para-item' + (p.timestamp_start === null ? ' no-timestamp' : '');
+        div.dataset.index = i;
+
+        var loc = document.createElement('span');
+        loc.className = 'para-loc';
+        loc.textContent = 'p.' + p.page + ' ln.' + p.line;
+
+        var time = document.createElement('span');
+        time.className = 'para-time';
+        time.textContent = p.timestamp_start !== null ? formatTime(p.timestamp_start) : '--:--';
+
+        var text = document.createElement('span');
+        text.className = 'para-text';
+        text.textContent = (p.text_preview || '').substring(0, 60);
+
+        div.appendChild(loc);
+        div.appendChild(time);
+        div.appendChild(text);
+
+        if (p.timestamp_start !== null) {
+          div.addEventListener('click', (function(idx) {
+            return function() { playFromParagraph(idx); };
+          })(i));
+        }
+
+        list.appendChild(div);
+      }
+    }
+
+    // ===== Play from paragraph =====
+    function playFromParagraph(index) {
+      if (!audio.src || index >= paragraphs.length) return;
+
+      var p = paragraphs[index];
+      if (p.timestamp_start === null) return;
+
+      audio.currentTime = p.timestamp_start;
+      audio.play();
+      isPlaying = true;
+      updatePlayButton();
+      setActiveParagraph(index);
+
+      var preview = (p.text_preview || '').substring(0, 50);
+      document.getElementById('now-playing').innerHTML =
+        '<strong>p.' + p.page + ', ln.' + p.line + '</strong> ' + preview;
+
+      // Try to select the paragraph in Word
+      if (officeReady) {
+        selectParagraphInWord(index);
+      }
+    }
+
+    // ===== Set active paragraph highlight =====
+    function setActiveParagraph(index) {
+      // Remove previous
+      var prev = document.querySelector('.para-item.active');
+      if (prev) prev.classList.remove('active');
+
+      activeParagraphIndex = index;
+
+      // Find and highlight
+      var items = document.querySelectorAll('.para-item');
+      for (var i = 0; i < items.length; i++) {
+        if (parseInt(items[i].dataset.index) === index) {
+          items[i].classList.add('active');
+          items[i].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          break;
+        }
+      }
+    }
+
+    // ===== Select paragraph in Word document =====
+    function selectParagraphInWord(paraIndex) {
+      Word.run(function(context) {
+        var paras = context.document.body.paragraphs;
+        paras.load('items');
+
+        return context.sync().then(function() {
+          if (paraIndex < paras.items.length) {
+            var targetPara = paras.items[paraIndex];
+            targetPara.select();
+            return context.sync();
+          }
+        });
+      }).catch(function(err) {
+        // Silently handle - paragraph selection is a convenience, not critical
+        console.log('Could not select paragraph:', err);
+      });
+    }
+
+    // ===== Handle document selection changes =====
+    function onDocumentSelectionChanged() {
+      if (!timestampMap || !audio.src) return;
+
+      Word.run(function(context) {
+        var selection = context.document.getSelection();
+        var paras = context.document.body.paragraphs;
+        paras.load('items');
+        selection.paragraphs.load('items');
+
+        return context.sync().then(function() {
+          if (selection.paragraphs.items.length > 0) {
+            // Find which paragraph index the selection is in
+            var selectedPara = selection.paragraphs.items[0];
+            var allParas = paras.items;
+
+            for (var i = 0; i < allParas.length; i++) {
+              if (allParas[i] === selectedPara || allParas[i]._Id === selectedPara._Id) {
+                // Found the paragraph index, check if it has a timestamp
+                if (i < paragraphs.length && paragraphs[i].timestamp_start !== null) {
+                  playFromParagraph(i);
+                }
+                break;
+              }
+            }
+          }
+        });
+      }).catch(function(err) {
+        console.log('Selection change handler error:', err);
+      });
+    }
+
+    // ===== Audio time update =====
+    audio.addEventListener('timeupdate', function() {
+      var current = audio.currentTime;
+      var duration = audio.duration || 0;
+
+      document.getElementById('time-current').textContent = formatTime(current);
+
+      if (duration > 0) {
+        var pct = (current / duration) * 100;
+        document.getElementById('progress-fill').style.width = pct + '%';
+      }
+
+      // Update active paragraph based on current time
+      if (paragraphs.length > 0) {
+        for (var i = paragraphs.length - 1; i >= 0; i--) {
+          if (paragraphs[i].timestamp_start !== null && current >= paragraphs[i].timestamp_start) {
+            if (i !== activeParagraphIndex) {
+              setActiveParagraph(i);
+              var p = paragraphs[i];
+              var preview = (p.text_preview || '').substring(0, 50);
+              document.getElementById('now-playing').innerHTML =
+                '<strong>p.' + p.page + ', ln.' + p.line + '</strong> ' + preview;
+            }
+            break;
+          }
+        }
+      }
+    });
+
+    audio.addEventListener('ended', function() {
+      isPlaying = false;
+      updatePlayButton();
+    });
+
+    // ===== Controls =====
+    document.getElementById('btn-play').addEventListener('click', function() {
+      if (!audio.src) return;
+      if (isPlaying) {
+        audio.pause();
+      } else {
+        audio.play();
+      }
+      isPlaying = !isPlaying;
+      updatePlayButton();
+    });
+
+    document.getElementById('btn-back').addEventListener('click', function() {
+      if (!audio.src) return;
+      audio.currentTime = Math.max(0, audio.currentTime - 5);
+    });
+
+    document.getElementById('btn-forward').addEventListener('click', function() {
+      if (!audio.src) return;
+      audio.currentTime = Math.min(audio.duration, audio.currentTime + 5);
+    });
+
+    document.getElementById('speed-select').addEventListener('change', function() {
+      audio.playbackRate = parseFloat(this.value);
+    });
+
+    // Progress bar click-to-seek
+    document.getElementById('progress-bar').addEventListener('click', function(e) {
+      if (!audio.src || !audio.duration) return;
+      var rect = this.getBoundingClientRect();
+      var pct = (e.clientX - rect.left) / rect.width;
+      audio.currentTime = pct * audio.duration;
+    });
+
+    // ===== Keyboard shortcuts =====
+    document.addEventListener('keydown', function(e) {
+      if (!audio.src) return;
+
+      // Don't intercept if typing in an input
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+
+      switch (e.key) {
+        case ' ':
+          e.preventDefault();
+          document.getElementById('btn-play').click();
+          break;
+        case 'ArrowLeft':
+          e.preventDefault();
+          audio.currentTime = Math.max(0, audio.currentTime - 5);
+          break;
+        case 'ArrowRight':
+          e.preventDefault();
+          audio.currentTime = Math.min(audio.duration, audio.currentTime + 5);
+          break;
+        case 'ArrowUp':
+          e.preventDefault();
+          navigateParagraph(-1);
+          break;
+        case 'ArrowDown':
+          e.preventDefault();
+          navigateParagraph(1);
+          break;
+      }
+    });
+
+    // ===== Navigate to prev/next timestamped paragraph =====
+    function navigateParagraph(direction) {
+      if (paragraphs.length === 0) return;
+
+      var current = activeParagraphIndex;
+      var next = current + direction;
+
+      while (next >= 0 && next < paragraphs.length) {
+        if (paragraphs[next].timestamp_start !== null) {
+          playFromParagraph(next);
+          return;
+        }
+        next += direction;
+      }
+    }
+
+    // ===== Helpers =====
+    function formatTime(seconds) {
+      if (isNaN(seconds) || seconds === null) return '0:00';
+      var mins = Math.floor(seconds / 60);
+      var secs = Math.floor(seconds % 60);
+      return mins + ':' + (secs < 10 ? '0' : '') + secs;
+    }
+
+    function updatePlayButton() {
+      document.getElementById('btn-play').innerHTML = isPlaying ? '&#9646;&#9646;' : '&#9654;';
+    }
+
+    function setStatus(msg, type) {
+      var bar = document.getElementById('status-bar');
+      bar.textContent = msg;
+      bar.className = 'status-bar' + (type ? ' ' + type : '');
+    }
+  </script>
+</body>
+</html>
