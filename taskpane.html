@@ -383,6 +383,8 @@
     let activeParagraphIndex = -1;
     let isPlaying = false;
     let officeReady = false;
+    let wordParaMap = {};  // maps timestamp map index -> Word paragraph index
+    let reverseParaMap = {};  // maps Word paragraph index -> timestamp map index
 
     // ===== Office.js initialization =====
     Office.onReady(function(info) {
@@ -414,6 +416,7 @@
             document.getElementById('btn-load-map').className = 'file-btn loaded';
             document.getElementById('btn-load-map').textContent = 'Loaded';
             buildParagraphList();
+            buildWordParaMapping();
             checkReady();
             setStatus('Timestamp map loaded: ' + paragraphs.length + ' paragraphs', 'success');
           } else {
@@ -543,21 +546,72 @@
       }
     }
 
+    // ===== Build mapping between timestamp map and Word paragraphs =====
+    function buildWordParaMapping() {
+      if (!officeReady || !paragraphs.length) return;
+
+      Word.run(function(context) {
+        var paras = context.document.body.paragraphs;
+        paras.load('text');
+
+        return context.sync().then(function() {
+          wordParaMap = {};
+          reverseParaMap = {};
+          var wordTexts = paras.items.map(function(p) {
+            return p.text.replace(/\s+/g, ' ').trim().toLowerCase();
+          });
+
+          for (var i = 0; i < paragraphs.length; i++) {
+            var preview = (paragraphs[i].text_preview || paragraphs[i].text || '').trim().toLowerCase();
+            if (!preview || preview.length < 3) continue;
+
+            // Search for the best matching Word paragraph
+            var searchText = preview.substring(0, Math.min(preview.length, 40));
+            var bestMatch = -1;
+            var bestScore = 0;
+
+            for (var w = 0; w < wordTexts.length; w++) {
+              if (reverseParaMap[w] !== undefined) continue;  // already matched
+              if (wordTexts[w].length < 2) continue;
+
+              if (wordTexts[w].indexOf(searchText) >= 0 || searchText.indexOf(wordTexts[w].substring(0, 30)) >= 0) {
+                // Prefer matches that are closer to the expected position
+                var score = 100 - Math.abs(w - (Object.keys(wordParaMap).length > 0 ?
+                  wordParaMap[Math.max(0, i - 1)] + 1 : i));
+                if (score > bestScore || bestMatch === -1) {
+                  bestScore = score;
+                  bestMatch = w;
+                }
+              }
+            }
+
+            if (bestMatch >= 0) {
+              wordParaMap[i] = bestMatch;
+              reverseParaMap[bestMatch] = i;
+            }
+          }
+
+          console.log('Mapped ' + Object.keys(wordParaMap).length + ' of ' + paragraphs.length + ' paragraphs to Word');
+        });
+      }).catch(function(err) {
+        console.log('Could not build paragraph mapping:', err);
+      });
+    }
+
     // ===== Select paragraph in Word document =====
     function selectParagraphInWord(paraIndex) {
       Word.run(function(context) {
         var paras = context.document.body.paragraphs;
-        paras.load('items');
+        paras.load('text');
 
         return context.sync().then(function() {
-          if (paraIndex < paras.items.length) {
-            var targetPara = paras.items[paraIndex];
-            targetPara.select();
+          var wordIndex = wordParaMap[paraIndex];
+          if (wordIndex !== undefined && wordIndex < paras.items.length) {
+            paras.items[wordIndex].select();
             return context.sync();
           }
         });
       }).catch(function(err) {
-        // Silently handle - paragraph selection is a convenience, not critical
         console.log('Could not select paragraph:', err);
       });
     }
@@ -568,23 +622,25 @@
 
       Word.run(function(context) {
         var selection = context.document.getSelection();
-        var paras = context.document.body.paragraphs;
-        paras.load('items');
-        selection.paragraphs.load('items');
+        selection.paragraphs.load('text');
 
         return context.sync().then(function() {
           if (selection.paragraphs.items.length > 0) {
-            // Find which paragraph index the selection is in
-            var selectedPara = selection.paragraphs.items[0];
-            var allParas = paras.items;
+            var selectedText = selection.paragraphs.items[0].text.replace(/\s+/g, ' ').trim().toLowerCase();
+            if (selectedText.length < 2) return;
 
-            for (var i = 0; i < allParas.length; i++) {
-              if (allParas[i] === selectedPara || allParas[i]._Id === selectedPara._Id) {
-                // Found the paragraph index, check if it has a timestamp
-                if (i < paragraphs.length && paragraphs[i].timestamp_start !== null) {
+            // Search the timestamp map for a matching paragraph
+            var searchSnippet = selectedText.substring(0, Math.min(selectedText.length, 40));
+            for (var i = 0; i < paragraphs.length; i++) {
+              var preview = (paragraphs[i].text_preview || paragraphs[i].text || '').trim().toLowerCase();
+              if (!preview || preview.length < 3) continue;
+
+              var previewSnippet = preview.substring(0, Math.min(preview.length, 40));
+              if (selectedText.indexOf(previewSnippet) >= 0 || previewSnippet.indexOf(searchSnippet) >= 0) {
+                if (paragraphs[i].timestamp_start !== null) {
                   playFromParagraph(i);
                 }
-                break;
+                return;
               }
             }
           }
