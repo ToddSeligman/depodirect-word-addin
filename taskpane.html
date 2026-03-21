@@ -548,7 +548,13 @@
 
     // ===== Build mapping between timestamp map and Word paragraphs =====
     function buildWordParaMapping() {
-      if (!officeReady || !paragraphs.length) return;
+      if (!officeReady || !paragraphs.length) {
+        // Retry after a delay if Office isn't ready yet
+        if (!officeReady && paragraphs.length) {
+          setTimeout(buildWordParaMapping, 2000);
+        }
+        return;
+      }
 
       Word.run(function(context) {
         var paras = context.document.body.paragraphs;
@@ -561,21 +567,38 @@
             return p.text.replace(/\s+/g, ' ').trim().toLowerCase();
           });
 
+          // Strip common prefixes like line numbers, Q., A. for fuzzy matching
+          function normalize(str) {
+            return str.replace(/^\d+\s*/, '').replace(/^[qa]\.\s*/i, '').replace(/\s+/g, ' ').trim().toLowerCase();
+          }
+
           for (var i = 0; i < paragraphs.length; i++) {
             var preview = (paragraphs[i].text_preview || paragraphs[i].text || '').trim().toLowerCase();
             if (!preview || preview.length < 3) continue;
 
-            // Search for the best matching Word paragraph
             var searchText = preview.substring(0, Math.min(preview.length, 40));
+            var normalizedSearch = normalize(preview).substring(0, 30);
             var bestMatch = -1;
             var bestScore = 0;
 
             for (var w = 0; w < wordTexts.length; w++) {
-              if (reverseParaMap[w] !== undefined) continue;  // already matched
+              if (reverseParaMap[w] !== undefined) continue;
               if (wordTexts[w].length < 2) continue;
 
+              var normalizedWord = normalize(wordTexts[w]);
+              var matched = false;
+
+              // Try exact substring match first
               if (wordTexts[w].indexOf(searchText) >= 0 || searchText.indexOf(wordTexts[w].substring(0, 30)) >= 0) {
-                // Prefer matches that are closer to the expected position
+                matched = true;
+              }
+              // Try normalized match (strips line numbers, Q./A. prefixes)
+              if (!matched && normalizedSearch.length > 5 &&
+                  (normalizedWord.indexOf(normalizedSearch) >= 0 || normalizedSearch.indexOf(normalizedWord.substring(0, 25)) >= 0)) {
+                matched = true;
+              }
+
+              if (matched) {
                 var score = 100 - Math.abs(w - (Object.keys(wordParaMap).length > 0 ?
                   wordParaMap[Math.max(0, i - 1)] + 1 : i));
                 if (score > bestScore || bestMatch === -1) {
@@ -591,28 +614,47 @@
             }
           }
 
-          console.log('Mapped ' + Object.keys(wordParaMap).length + ' of ' + paragraphs.length + ' paragraphs to Word');
+          var mapped = Object.keys(wordParaMap).length;
+          var total = paragraphs.length;
+          setStatus('Synced ' + mapped + ' of ' + total + ' paragraphs to Word (' + paras.items.length + ' Word paras)', mapped > 0 ? 'success' : 'error');
         });
       }).catch(function(err) {
-        console.log('Could not build paragraph mapping:', err);
+        setStatus('Paragraph sync failed: ' + err.message, 'error');
       });
     }
 
     // ===== Select paragraph in Word document =====
     function selectParagraphInWord(paraIndex) {
+      if (!officeReady) return;
+
       Word.run(function(context) {
         var paras = context.document.body.paragraphs;
         paras.load('text');
 
         return context.sync().then(function() {
+          // First try the pre-built mapping
           var wordIndex = wordParaMap[paraIndex];
           if (wordIndex !== undefined && wordIndex < paras.items.length) {
             paras.items[wordIndex].select();
             return context.sync();
           }
+
+          // Fallback: real-time text search if mapping missed this paragraph
+          var preview = (paragraphs[paraIndex].text_preview || paragraphs[paraIndex].text || '').trim().toLowerCase();
+          if (!preview || preview.length < 3) return;
+
+          var searchSnippet = preview.substring(0, Math.min(preview.length, 35));
+          for (var w = 0; w < paras.items.length; w++) {
+            var wordText = paras.items[w].text.replace(/\s+/g, ' ').trim().toLowerCase();
+            if (wordText.length < 2) continue;
+            if (wordText.indexOf(searchSnippet) >= 0 || searchSnippet.indexOf(wordText.substring(0, 30)) >= 0) {
+              paras.items[w].select();
+              return context.sync();
+            }
+          }
         });
       }).catch(function(err) {
-        console.log('Could not select paragraph:', err);
+        // silently fail - don't disrupt playback
       });
     }
 
@@ -672,6 +714,10 @@
               var preview = (p.text_preview || '').substring(0, 50);
               document.getElementById('now-playing').innerHTML =
                 '<strong>p.' + p.page + ', ln.' + p.line + '</strong> ' + preview;
+              // Also move Word selection to follow along
+              if (officeReady) {
+                selectParagraphInWord(i);
+              }
             }
             break;
           }
