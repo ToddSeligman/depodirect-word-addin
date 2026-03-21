@@ -385,6 +385,8 @@
     let officeReady = false;
     let wordParaMap = {};  // maps timestamp map index -> Word paragraph index
     let reverseParaMap = {};  // maps Word paragraph index -> timestamp map index
+    let _ignoreSelectionChange = false;  // prevents loops when we programmatically select in Word
+    let _selectionChangeTimer = null;  // debounce timer for selection changes
 
     // ===== Office.js initialization =====
     Office.onReady(function(info) {
@@ -627,6 +629,9 @@
     function selectParagraphInWord(paraIndex) {
       if (!officeReady) return;
 
+      // Set flag so onDocumentSelectionChanged ignores the selection we're about to make
+      _ignoreSelectionChange = true;
+
       Word.run(function(context) {
         var paras = context.document.body.paragraphs;
         paras.load('text');
@@ -636,12 +641,18 @@
           var wordIndex = wordParaMap[paraIndex];
           if (wordIndex !== undefined && wordIndex < paras.items.length) {
             paras.items[wordIndex].select();
-            return context.sync();
+            return context.sync().then(function() {
+              // Reset flag after a short delay to let the selection event pass
+              setTimeout(function() { _ignoreSelectionChange = false; }, 500);
+            });
           }
 
           // Fallback: real-time text search if mapping missed this paragraph
           var preview = (paragraphs[paraIndex].text_preview || paragraphs[paraIndex].text || '').trim().toLowerCase();
-          if (!preview || preview.length < 3) return;
+          if (!preview || preview.length < 3) {
+            _ignoreSelectionChange = false;
+            return;
+          }
 
           var searchSnippet = preview.substring(0, Math.min(preview.length, 35));
           for (var w = 0; w < paras.items.length; w++) {
@@ -649,46 +660,76 @@
             if (wordText.length < 2) continue;
             if (wordText.indexOf(searchSnippet) >= 0 || searchSnippet.indexOf(wordText.substring(0, 30)) >= 0) {
               paras.items[w].select();
-              return context.sync();
+              return context.sync().then(function() {
+                setTimeout(function() { _ignoreSelectionChange = false; }, 500);
+              });
             }
           }
+          _ignoreSelectionChange = false;
         });
       }).catch(function(err) {
-        // silently fail - don't disrupt playback
+        _ignoreSelectionChange = false;
       });
     }
 
-    // ===== Handle document selection changes =====
+    // ===== Handle document selection changes (clicking in Word doc) =====
     function onDocumentSelectionChanged() {
+      // Skip if we triggered this ourselves (from selectParagraphInWord)
+      if (_ignoreSelectionChange) return;
+
+      // Skip if files aren't loaded yet
       if (!timestampMap || !audio.src) return;
 
+      // Debounce: wait 300ms before processing to avoid rapid-fire events
+      if (_selectionChangeTimer) clearTimeout(_selectionChangeTimer);
+      _selectionChangeTimer = setTimeout(function() {
+        _handleDocumentSelection();
+      }, 300);
+    }
+
+    function _handleDocumentSelection() {
       Word.run(function(context) {
         var selection = context.document.getSelection();
         selection.paragraphs.load('text');
 
         return context.sync().then(function() {
-          if (selection.paragraphs.items.length > 0) {
-            var selectedText = selection.paragraphs.items[0].text.replace(/\s+/g, ' ').trim().toLowerCase();
-            if (selectedText.length < 2) return;
+          if (selection.paragraphs.items.length === 0) return;
 
-            // Search the timestamp map for a matching paragraph
-            var searchSnippet = selectedText.substring(0, Math.min(selectedText.length, 40));
-            for (var i = 0; i < paragraphs.length; i++) {
-              var preview = (paragraphs[i].text_preview || paragraphs[i].text || '').trim().toLowerCase();
-              if (!preview || preview.length < 3) continue;
+          var selectedText = selection.paragraphs.items[0].text.replace(/\s+/g, ' ').trim().toLowerCase();
+          if (selectedText.length < 2) return;
 
-              var previewSnippet = preview.substring(0, Math.min(preview.length, 40));
-              if (selectedText.indexOf(previewSnippet) >= 0 || previewSnippet.indexOf(searchSnippet) >= 0) {
-                if (paragraphs[i].timestamp_start !== null) {
-                  playFromParagraph(i);
+          // Search the timestamp map for a matching paragraph
+          var searchSnippet = selectedText.substring(0, Math.min(selectedText.length, 40));
+          for (var i = 0; i < paragraphs.length; i++) {
+            var preview = (paragraphs[i].text_preview || paragraphs[i].text || '').trim().toLowerCase();
+            if (!preview || preview.length < 3) continue;
+
+            var previewSnippet = preview.substring(0, Math.min(preview.length, 40));
+            if (selectedText.indexOf(previewSnippet) >= 0 || previewSnippet.indexOf(searchSnippet) >= 0) {
+              if (paragraphs[i].timestamp_start !== null) {
+                // If already playing, jump to this paragraph and keep playing
+                // If not playing, just seek to this position (user can hit play)
+                var wasPlaying = isPlaying;
+                audio.currentTime = paragraphs[i].timestamp_start;
+                if (wasPlaying) {
+                  audio.play();
                 }
-                return;
+                setActiveParagraph(i);
+
+                var p = paragraphs[i];
+                var previewText = (p.text_preview || '').substring(0, 50);
+                document.getElementById('now-playing').innerHTML =
+                  '<strong>p.' + p.page + ', ln.' + p.line + '</strong> ' + previewText;
+                setStatus('Synced to Word selection: p.' + p.page + ', ln.' + p.line, 'success');
               }
+              return;
             }
           }
+          // No match found
+          setStatus('No timestamp match for selected paragraph', '');
         });
       }).catch(function(err) {
-        console.log('Selection change handler error:', err);
+        setStatus('Selection sync error: ' + err.message, 'error');
       });
     }
 
