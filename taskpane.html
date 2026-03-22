@@ -398,7 +398,7 @@
 
             var loc = document.createElement('span');
             loc.className = 'para-loc';
-            loc.textContent = 'p.' + p.page + ' ln.' + p.line;
+            loc.textContent = 'Tr.' + p.page + ':' + p.line;
 
             var time = document.createElement('span');
             time.className = 'para-time';
@@ -758,8 +758,8 @@
         var p = paragraphs[tsIdx];
         var previewText = (p.text_preview || '').substring(0, 50);
         document.getElementById('now-playing').innerHTML =
-            '<strong>p.' + p.page + ', ln.' + p.line + '</strong> ' + previewText;
-        setStatus('Synced to Word selection: p.' + p.page + ', ln.' + p.line, 'success');
+            '<strong>Tr. p.' + p.page + ', ln.' + p.line + '</strong> ' + previewText;
+        setStatus('Synced to Word selection: Tr. p.' + p.page + ', ln.' + p.line, 'success');
     }
 
     // ===== Audio time update =====
@@ -774,25 +774,55 @@
         }
 
         // Update active paragraph based on current time
+        // Uses interpolation to advance smoothly through timestamp gaps
         if (paragraphs.length > 0) {
+            // Find the base paragraph (last one with timestamp <= current)
+            var baseIdx = -1;
             for (var i = paragraphs.length - 1; i >= 0; i--) {
                 if (paragraphs[i].timestamp_start !== null && current >= paragraphs[i].timestamp_start) {
-                    if (i !== activeParagraphIndex) {
-                        setActiveParagraph(i);
-                        var p = paragraphs[i];
-                        var preview = (p.text_preview || '').substring(0, 50);
-                        document.getElementById('now-playing').innerHTML =
-                            '<strong>p.' + p.page + ', ln.' + p.line + '</strong> ' + preview;
-
-                        // Move Word selection to follow along
-                        if (officeReady) {
-                            selectParagraphInWord(i);
-                        }
-                    }
+                    baseIdx = i;
                     break;
                 }
             }
+            if (baseIdx >= 0) {
+                // Find the next timestamped paragraph after baseIdx
+                var nextIdx = -1;
+                for (var j = baseIdx + 1; j < paragraphs.length; j++) {
+                    if (paragraphs[j].timestamp_start !== null) {
+                        nextIdx = j;
+                        break;
+                    }
+                }
+                // Interpolate: if we're in a gap between two timestamps,
+                // advance proportionally through the paragraphs between them.
+                // This prevents the highlight from staying stuck on one line
+                // during large timestamp gaps.
+                var targetIdx = baseIdx;
+                if (nextIdx > baseIdx + 1) {
+                    var baseTime = paragraphs[baseIdx].timestamp_start;
+                    var nextTime = paragraphs[nextIdx].timestamp_start;
+                    var timeSpan = nextTime - baseTime;
+                    if (timeSpan > 0) {
+                        var elapsed = current - baseTime;
+                        var frac = Math.min(elapsed / timeSpan, 0.99);
+                        var parasInGap = nextIdx - baseIdx;
+                        var interpolatedOffset = Math.floor(frac * parasInGap);
+                        targetIdx = baseIdx + interpolatedOffset;
+                    }
+                }
+                if (targetIdx !== activeParagraphIndex) {
+                    setActiveParagraph(targetIdx);
+                    var p = paragraphs[targetIdx];
+                    var preview = (p.text_preview || '').substring(0, 50);
+                    document.getElementById('now-playing').innerHTML =
+                        '<strong>Tr. p.' + p.page + ', ln.' + p.line + '</strong> ' + preview;
+                    if (officeReady) {
+                        selectParagraphInWord(targetIdx);
+                    }
+                }
+            }
         }
+
     });
 
     audio.addEventListener('ended', function() {
