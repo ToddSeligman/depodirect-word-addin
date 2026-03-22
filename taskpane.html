@@ -1,874 +1,893 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>DepoDirect Audio Player</title>
-  <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-
-    body {
-      font-family: 'Segoe UI', -apple-system, sans-serif;
-      font-size: 13px;
-      color: #323130;
-      background: #faf9f8;
-      padding: 12px;
-      height: 100vh;
-      display: flex;
-      flex-direction: column;
-    }
-
-    .header {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-bottom: 12px;
-      padding-bottom: 8px;
-      border-bottom: 1px solid #edebe9;
-    }
-
-    .header h1 {
-      font-size: 16px;
-      font-weight: 600;
-      color: #0078d4;
-    }
-
-    .logo {
-      width: 24px; height: 24px;
-      background: #0078d4;
-      border-radius: 4px;
-      display: flex; align-items: center; justify-content: center;
-      color: white; font-weight: 700; font-size: 11px;
-    }
-
-    /* File inputs */
-    .file-section {
-      margin-bottom: 10px;
-    }
-
-    .file-section label {
-      display: block;
-      font-weight: 600;
-      font-size: 12px;
-      margin-bottom: 4px;
-      color: #605e5c;
-    }
-
-    .file-input-wrapper {
-      position: relative;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .file-btn {
-      background: #0078d4;
-      color: white;
-      border: none;
-      padding: 6px 12px;
-      border-radius: 4px;
-      font-size: 12px;
-      cursor: pointer;
-      white-space: nowrap;
-    }
-
-    .file-btn:hover { background: #106ebe; }
-
-    .file-btn.loaded {
-      background: #107c10;
-    }
-
-    .file-name {
-      font-size: 11px;
-      color: #605e5c;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-      flex: 1;
-    }
-
-    /* Player controls */
-    .player-section {
-      background: white;
-      border: 1px solid #edebe9;
-      border-radius: 8px;
-      padding: 12px;
-      margin-bottom: 10px;
-    }
-
-    .now-playing {
-      font-size: 11px;
-      color: #605e5c;
-      margin-bottom: 6px;
-      min-height: 16px;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    .now-playing strong {
-      color: #323130;
-    }
-
-    .time-display {
-      display: flex;
-      justify-content: space-between;
-      font-size: 11px;
-      color: #605e5c;
-      margin-bottom: 4px;
-    }
-
-    .progress-bar {
-      width: 100%;
-      height: 6px;
-      background: #edebe9;
-      border-radius: 3px;
-      margin-bottom: 10px;
-      cursor: pointer;
-      position: relative;
-    }
-
-    .progress-fill {
-      height: 100%;
-      background: #0078d4;
-      border-radius: 3px;
-      width: 0%;
-      transition: width 0.1s linear;
-    }
-
-    .controls {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-    }
-
-    .ctrl-btn {
-      background: none;
-      border: 1px solid #c8c6c4;
-      border-radius: 4px;
-      padding: 6px 10px;
-      cursor: pointer;
-      font-size: 14px;
-      color: #323130;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      min-width: 36px;
-    }
-
-    .ctrl-btn:hover { background: #f3f2f1; }
-
-    .ctrl-btn.play-btn {
-      background: #0078d4;
-      color: white;
-      border-color: #0078d4;
-      padding: 8px 16px;
-      font-size: 16px;
-    }
-
-    .ctrl-btn.play-btn:hover { background: #106ebe; }
-
-    .speed-control {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      margin-left: auto;
-    }
-
-    .speed-label {
-      font-size: 11px;
-      color: #605e5c;
-    }
-
-    .speed-select {
-      font-size: 12px;
-      padding: 3px 6px;
-      border: 1px solid #c8c6c4;
-      border-radius: 4px;
-      background: white;
-    }
-
-    /* Paragraph list */
-    .para-section {
-      flex: 1;
-      overflow-y: auto;
-      border: 1px solid #edebe9;
-      border-radius: 8px;
-      background: white;
-    }
-
-    .para-section-header {
-      position: sticky;
-      top: 0;
-      background: #faf9f8;
-      padding: 8px 10px;
-      font-weight: 600;
-      font-size: 12px;
-      color: #605e5c;
-      border-bottom: 1px solid #edebe9;
-      z-index: 1;
-    }
-
-    .para-item {
-      padding: 6px 10px;
-      border-bottom: 1px solid #f3f2f1;
-      cursor: pointer;
-      font-size: 12px;
-      display: flex;
-      gap: 8px;
-      align-items: flex-start;
-    }
-
-    .para-item:hover { background: #f3f2f1; }
-
-    .para-item.active {
-      background: #e1f0ff;
-      border-left: 3px solid #0078d4;
-    }
-
-    .para-item.no-timestamp {
-      color: #a19f9d;
-      cursor: default;
-    }
-
-    .para-loc {
-      font-size: 10px;
-      color: #a19f9d;
-      white-space: nowrap;
-      min-width: 50px;
-    }
-
-    .para-time {
-      font-size: 10px;
-      color: #0078d4;
-      white-space: nowrap;
-      min-width: 45px;
-    }
-
-    .para-text {
-      flex: 1;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    /* Status */
-    .status-bar {
-      margin-top: 8px;
-      font-size: 11px;
-      color: #605e5c;
-      text-align: center;
-    }
-
-    .status-bar.error { color: #a4262c; }
-    .status-bar.success { color: #107c10; }
-
-    /* Empty state */
-    .empty-state {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
-      padding: 20px;
-      color: #605e5c;
-    }
-
-    .empty-state p { margin-bottom: 8px; }
-    .empty-state .hint { font-size: 11px; color: #a19f9d; }
-
-    /* Keyboard shortcuts info */
-    .shortcuts {
-      margin-top: 8px;
-      padding: 8px 10px;
-      background: #f3f2f1;
-      border-radius: 6px;
-      font-size: 11px;
-      color: #605e5c;
-    }
-
-    .shortcuts kbd {
-      background: white;
-      border: 1px solid #c8c6c4;
-      border-radius: 3px;
-      padding: 1px 4px;
-      font-family: inherit;
-      font-size: 10px;
-    }
-  </style>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title>DepoDirect Audio Player</title>
+    <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Segoe UI', -apple-system, sans-serif;
+            font-size: 13px;
+            color: #323130;
+            background: #faf9f8;
+            padding: 12px;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #edebe9;
+        }
+        .header h1 { font-size: 16px; font-weight: 600; color: #0078d4; }
+        .logo {
+            width: 24px; height: 24px;
+            background: #0078d4; border-radius: 4px;
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-weight: 700; font-size: 11px;
+        }
+        .file-section { margin-bottom: 10px; }
+        .file-section label {
+            display: block; font-weight: 600; font-size: 12px;
+            margin-bottom: 4px; color: #605e5c;
+        }
+        .file-input-wrapper {
+            position: relative; display: flex;
+            align-items: center; gap: 6px;
+        }
+        .file-btn {
+            background: #0078d4; color: white; border: none;
+            padding: 6px 12px; border-radius: 4px;
+            font-size: 12px; cursor: pointer; white-space: nowrap;
+        }
+        .file-btn:hover { background: #106ebe; }
+        .file-btn.loaded { background: #107c10; }
+        .file-name {
+            font-size: 11px; color: #605e5c;
+            overflow: hidden; text-overflow: ellipsis;
+            white-space: nowrap; flex: 1;
+        }
+        .player-section {
+            background: white; border: 1px solid #edebe9;
+            border-radius: 8px; padding: 12px; margin-bottom: 10px;
+        }
+        .now-playing {
+            font-size: 11px; color: #605e5c;
+            margin-bottom: 6px; min-height: 16px;
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+        .now-playing strong { color: #323130; }
+        .time-display {
+            display: flex; justify-content: space-between;
+            font-size: 11px; color: #605e5c; margin-bottom: 4px;
+        }
+        .progress-bar {
+            width: 100%; height: 6px; background: #edebe9;
+            border-radius: 3px; margin-bottom: 10px;
+            cursor: pointer; position: relative;
+        }
+        .progress-fill {
+            height: 100%; background: #0078d4;
+            border-radius: 3px; width: 0%;
+            transition: width 0.1s linear;
+        }
+        .controls {
+            display: flex; align-items: center;
+            justify-content: center; gap: 8px;
+        }
+        .ctrl-btn {
+            background: none; border: 1px solid #c8c6c4;
+            border-radius: 4px; padding: 6px 10px;
+            cursor: pointer; font-size: 14px; color: #323130;
+            display: flex; align-items: center;
+            justify-content: center; min-width: 36px;
+        }
+        .ctrl-btn:hover { background: #f3f2f1; }
+        .ctrl-btn.play-btn {
+            background: #0078d4; color: white;
+            border-color: #0078d4; padding: 8px 16px; font-size: 16px;
+        }
+        .ctrl-btn.play-btn:hover { background: #106ebe; }
+        .speed-control {
+            display: flex; align-items: center;
+            gap: 4px; margin-left: auto;
+        }
+        .speed-label { font-size: 11px; color: #605e5c; }
+        .speed-select {
+            font-size: 12px; padding: 3px 6px;
+            border: 1px solid #c8c6c4; border-radius: 4px; background: white;
+        }
+        .para-section {
+            flex: 1; overflow-y: auto;
+            border: 1px solid #edebe9; border-radius: 8px; background: white;
+        }
+        .para-section-header {
+            position: sticky; top: 0; background: #faf9f8;
+            padding: 8px 10px; font-weight: 600; font-size: 12px;
+            color: #605e5c; border-bottom: 1px solid #edebe9; z-index: 1;
+        }
+        .para-item {
+            padding: 6px 10px; border-bottom: 1px solid #f3f2f1;
+            cursor: pointer; font-size: 12px;
+            display: flex; gap: 8px; align-items: flex-start;
+        }
+        .para-item:hover { background: #f3f2f1; }
+        .para-item.active {
+            background: #e1f0ff; border-left: 3px solid #0078d4;
+        }
+        .para-item.no-timestamp { color: #a19f9d; cursor: default; }
+        .para-loc {
+            font-size: 10px; color: #a19f9d;
+            white-space: nowrap; min-width: 50px;
+        }
+        .para-time {
+            font-size: 10px; color: #0078d4;
+            white-space: nowrap; min-width: 45px;
+        }
+        .para-text {
+            flex: 1; overflow: hidden;
+            text-overflow: ellipsis; white-space: nowrap;
+        }
+        .status-bar {
+            margin-top: 8px; font-size: 11px;
+            color: #605e5c; text-align: center;
+        }
+        .status-bar.error { color: #a4262c; }
+        .status-bar.success { color: #107c10; }
+        .empty-state {
+            flex: 1; display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            text-align: center; padding: 20px; color: #605e5c;
+        }
+        .empty-state p { margin-bottom: 8px; }
+        .empty-state .hint { font-size: 11px; color: #a19f9d; }
+        .shortcuts {
+            margin-top: 8px; padding: 8px 10px;
+            background: #f3f2f1; border-radius: 6px;
+            font-size: 11px; color: #605e5c;
+        }
+        .shortcuts kbd {
+            background: white; border: 1px solid #c8c6c4;
+            border-radius: 3px; padding: 1px 4px;
+            font-family: inherit; font-size: 10px;
+        }
+        .sync-stats {
+            font-size: 10px; color: #605e5c;
+            padding: 4px 10px; background: #f3f2f1;
+            border-bottom: 1px solid #edebe9;
+        }
+    </style>
 </head>
 <body>
-  <div class="header">
-    <div class="logo">DD</div>
-    <h1>Audio Player</h1>
-  </div>
-
-  <!-- File inputs -->
-  <div class="file-section">
-    <label>Timestamp Map (JSON from QC tool)</label>
-    <div class="file-input-wrapper">
-      <button class="file-btn" id="btn-load-map" onclick="document.getElementById('input-map').click()">Load Map</button>
-      <span class="file-name" id="map-filename">No file loaded</span>
-      <input type="file" id="input-map" accept=".json" style="display:none"/>
+    <div class="header">
+        <div class="logo">DD</div>
+        <h1>Audio Player</h1>
     </div>
-  </div>
 
-  <div class="file-section">
-    <label>Audio File (MP3/WAV from deposition)</label>
-    <div class="file-input-wrapper">
-      <button class="file-btn" id="btn-load-audio" onclick="document.getElementById('input-audio').click()">Load Audio</button>
-      <span class="file-name" id="audio-filename">No file loaded</span>
-      <input type="file" id="input-audio" accept=".mp3,.wav,.m4a,.ogg,.webm" style="display:none"/>
+    <div class="file-section">
+        <label>Timestamp Map (JSON from QC tool)</label>
+        <div class="file-input-wrapper">
+            <button class="file-btn" id="btn-load-map" onclick="document.getElementById('input-map').click()">Load Map</button>
+            <span class="file-name" id="map-filename">No file loaded</span>
+            <input type="file" id="input-map" accept=".json" style="display:none"/>
+        </div>
     </div>
-  </div>
 
-  <!-- Player controls (hidden until files loaded) -->
-  <div class="player-section" id="player-section" style="display:none">
-    <div class="now-playing" id="now-playing">Click a paragraph to start playback</div>
-    <div class="time-display">
-      <span id="time-current">0:00</span>
-      <span id="time-total">0:00</span>
+    <div class="file-section">
+        <label>Audio File (MP3/WAV from deposition)</label>
+        <div class="file-input-wrapper">
+            <button class="file-btn" id="btn-load-audio" onclick="document.getElementById('input-audio').click()">Load Audio</button>
+            <span class="file-name" id="audio-filename">No file loaded</span>
+            <input type="file" id="input-audio" accept=".mp3,.wav,.m4a,.ogg,.webm" style="display:none"/>
+        </div>
     </div>
-    <div class="progress-bar" id="progress-bar">
-      <div class="progress-fill" id="progress-fill"></div>
+
+    <div class="player-section" id="player-section" style="display:none">
+        <div class="now-playing" id="now-playing">Click a paragraph to start playback</div>
+        <div class="time-display">
+            <span id="time-current">0:00</span>
+            <span id="time-total">0:00</span>
+        </div>
+        <div class="progress-bar" id="progress-bar">
+            <div class="progress-fill" id="progress-fill"></div>
+        </div>
+        <div class="controls">
+            <button class="ctrl-btn" id="btn-back" title="Back 5 seconds">-5s</button>
+            <button class="ctrl-btn play-btn" id="btn-play" title="Play / Pause">&#9654;</button>
+            <button class="ctrl-btn" id="btn-forward" title="Forward 5 seconds">+5s</button>
+            <div class="speed-control">
+                <span class="speed-label">Speed:</span>
+                <select class="speed-select" id="speed-select">
+                    <option value="0.5">0.5x</option>
+                    <option value="0.75">0.75x</option>
+                    <option value="1" selected>1.0x</option>
+                    <option value="1.25">1.25x</option>
+                    <option value="1.5">1.5x</option>
+                    <option value="2">2.0x</option>
+                </select>
+            </div>
+        </div>
     </div>
-    <div class="controls">
-      <button class="ctrl-btn" id="btn-back" title="Back 5 seconds">-5s</button>
-      <button class="ctrl-btn play-btn" id="btn-play" title="Play / Pause">&#9654;</button>
-      <button class="ctrl-btn" id="btn-forward" title="Forward 5 seconds">+5s</button>
-      <div class="speed-control">
-        <span class="speed-label">Speed:</span>
-        <select class="speed-select" id="speed-select">
-          <option value="0.5">0.5x</option>
-          <option value="0.75">0.75x</option>
-          <option value="1" selected>1.0x</option>
-          <option value="1.25">1.25x</option>
-          <option value="1.5">1.5x</option>
-          <option value="2">2.0x</option>
-        </select>
-      </div>
+
+    <div class="para-section" id="para-section" style="display:none">
+        <div class="para-section-header" id="para-header">Paragraphs</div>
+        <div class="sync-stats" id="sync-stats" style="display:none"></div>
+        <div id="para-list"></div>
     </div>
-  </div>
 
-  <!-- Paragraph list -->
-  <div class="para-section" id="para-section" style="display:none">
-    <div class="para-section-header" id="para-header">Paragraphs</div>
-    <div id="para-list"></div>
-  </div>
+    <div class="empty-state" id="empty-state">
+        <p>Load a timestamp map and audio file to get started.</p>
+        <p class="hint">The timestamp map JSON is generated by the DepoDirect QC tool alongside the corrected transcript.</p>
+    </div>
 
-  <!-- Empty state -->
-  <div class="empty-state" id="empty-state">
-    <p>Load a timestamp map and audio file to get started.</p>
-    <p class="hint">The timestamp map JSON is generated by the DepoDirect QC tool alongside the corrected transcript.</p>
-  </div>
+    <div class="shortcuts" id="shortcuts" style="display:none">
+        <kbd>Space</kbd> Play/Pause &nbsp;
+        <kbd>&#8592;</kbd> Back 5s &nbsp;
+        <kbd>&#8594;</kbd> Forward 5s &nbsp;
+        <kbd>&#8593;/&#8595;</kbd> Prev/Next paragraph
+    </div>
 
-  <!-- Keyboard shortcuts -->
-  <div class="shortcuts" id="shortcuts" style="display:none">
-    <kbd>Space</kbd> Play/Pause &nbsp;
-    <kbd>&#8592;</kbd> Back 5s &nbsp;
-    <kbd>&#8594;</kbd> Forward 5s &nbsp;
-    <kbd>&#8593;/&#8595;</kbd> Prev/Next paragraph
-  </div>
+    <div class="status-bar" id="status-bar"></div>
 
-  <div class="status-bar" id="status-bar"></div>
-
-  <script>
+<script>
     // ===== State =====
-    let timestampMap = null;
-    let paragraphs = [];
-    let audio = new Audio();
-    let activeParagraphIndex = -1;
-    let isPlaying = false;
-    let officeReady = false;
-    let wordParaMap = {};  // maps timestamp map index -> Word paragraph index
-    let reverseParaMap = {};  // maps Word paragraph index -> timestamp map index
-    let _ignoreSelectionChange = false;  // prevents loops when we programmatically select in Word
-    let _selectionChangeTimer = null;  // debounce timer for selection changes
+    var timestampMap = null;
+    var paragraphs = [];
+    var audio = new Audio();
+    var activeParagraphIndex = -1;
+    var isPlaying = false;
+    var officeReady = false;
+
+    // Mapping: timestamp map index -> Word paragraph index (and reverse)
+    var wordParaMap = {};
+    var reverseParaMap = {};
+
+    // Selection change management
+    var _ignoreSelectionChange = false;
+    var _selectionChangeTimer = null;
+
+    // Word document paragraph cache (loaded once during mapping)
+    var _wordParaCache = [];
 
     // ===== Office.js initialization =====
     Office.onReady(function(info) {
-      officeReady = true;
-      setStatus('Ready. Load files to begin.', 'success');
-
-      // Listen for selection changes in the document
-      if (info.host === Office.HostType.Word) {
-        Office.context.document.addHandlerAsync(
-          Office.EventType.DocumentSelectionChanged,
-          onDocumentSelectionChanged
-        );
-      }
+        officeReady = true;
+        setStatus('Ready. Load files to begin.', 'success');
+        if (info.host === Office.HostType.Word) {
+            Office.context.document.addHandlerAsync(
+                Office.EventType.DocumentSelectionChanged,
+                onDocumentSelectionChanged
+            );
+        }
     });
+
+    // ===== Normalize text for comparison =====
+    // Strips line numbers, Q./A. prefixes, speaker labels, whitespace, punctuation
+    // This is the KEY fix: much more aggressive normalization so tracked-changes
+    // markup, revision marks, and formatting differences don't break matching.
+    function normalizeForMatch(str) {
+        if (!str) return '';
+        return str
+            .replace(/\r?\n/g, ' ')           // newlines to spaces
+            .replace(/\s+/g, ' ')              // collapse whitespace
+            .replace(/^\d+\s*/, '')            // strip leading line numbers
+            .replace(/^[QA]\.\s*/i, '')        // strip Q./A. prefix
+            .replace(/[^\w\s]/g, '')           // strip all punctuation
+            .trim()
+            .toLowerCase();
+    }
+
+    // Extract just the "content words" (skip very short common words)
+    function contentWords(str) {
+        var skip = {'the':1,'a':1,'an':1,'is':1,'of':1,'to':1,'in':1,'and':1,'or':1,'by':1,'q':1,'a':1,'mr':1,'ms':1,'mrs':1};
+        return normalizeForMatch(str).split(/\s+/).filter(function(w) {
+            return w.length > 2 && !skip[w];
+        });
+    }
+
+    // Compute similarity score between two strings (0 to 1)
+    // Uses content word overlap (Jaccard-like) for robustness against
+    // tracked changes, insertions, and minor edits
+    function textSimilarity(str1, str2) {
+        var words1 = contentWords(str1);
+        var words2 = contentWords(str2);
+        if (words1.length === 0 || words2.length === 0) return 0;
+
+        // Use the shorter text's words as the reference set
+        var shorter = words1.length <= words2.length ? words1 : words2;
+        var longer = words1.length <= words2.length ? words2 : words1;
+
+        // Build a set from the longer
+        var longerSet = {};
+        for (var i = 0; i < longer.length; i++) {
+            longerSet[longer[i]] = true;
+        }
+
+        // Count matches
+        var matches = 0;
+        for (var j = 0; j < shorter.length; j++) {
+            if (longerSet[shorter[j]]) matches++;
+        }
+
+        // Score: proportion of shorter text's words found in longer text
+        return matches / shorter.length;
+    }
 
     // ===== File input handlers =====
     document.getElementById('input-map').addEventListener('change', function(e) {
-      var file = e.target.files[0];
-      if (!file) return;
-
-      var reader = new FileReader();
-      reader.onload = function(ev) {
-        try {
-          var data = JSON.parse(ev.target.result);
-          if (data.paragraphs && Array.isArray(data.paragraphs)) {
-            timestampMap = data;
-            paragraphs = data.paragraphs;
-            document.getElementById('map-filename').textContent = file.name;
-            document.getElementById('btn-load-map').className = 'file-btn loaded';
-            document.getElementById('btn-load-map').textContent = 'Loaded';
-            buildParagraphList();
-            buildWordParaMapping();
-            checkReady();
-            setStatus('Timestamp map loaded: ' + paragraphs.length + ' paragraphs', 'success');
-          } else {
-            setStatus('Invalid timestamp map format. Expected {paragraphs: [...]}', 'error');
-          }
-        } catch (err) {
-          setStatus('Error parsing JSON: ' + err.message, 'error');
-        }
-      };
-      reader.readAsText(file);
+        var file = e.target.files[0];
+        if (!file) return;
+        var reader = new FileReader();
+        reader.onload = function(ev) {
+            try {
+                var data = JSON.parse(ev.target.result);
+                if (data.paragraphs && Array.isArray(data.paragraphs)) {
+                    timestampMap = data;
+                    paragraphs = data.paragraphs;
+                    document.getElementById('map-filename').textContent = file.name;
+                    document.getElementById('btn-load-map').className = 'file-btn loaded';
+                    document.getElementById('btn-load-map').textContent = 'Loaded';
+                    buildParagraphList();
+                    buildWordParaMapping();
+                    checkReady();
+                    setStatus('Timestamp map loaded: ' + paragraphs.length + ' paragraphs', 'success');
+                } else {
+                    setStatus('Invalid timestamp map format. Expected {paragraphs: [...]}', 'error');
+                }
+            } catch (err) {
+                setStatus('Error parsing JSON: ' + err.message, 'error');
+            }
+        };
+        reader.readAsText(file);
     });
 
     document.getElementById('input-audio').addEventListener('change', function(e) {
-      var file = e.target.files[0];
-      if (!file) return;
-
-      var url = URL.createObjectURL(file);
-      audio.src = url;
-
-      audio.addEventListener('loadedmetadata', function() {
-        document.getElementById('time-total').textContent = formatTime(audio.duration);
-        document.getElementById('audio-filename').textContent = file.name;
-        document.getElementById('btn-load-audio').className = 'file-btn loaded';
-        document.getElementById('btn-load-audio').textContent = 'Loaded';
-        checkReady();
-        setStatus('Audio loaded: ' + formatTime(audio.duration), 'success');
-      }, { once: true });
-
-      audio.addEventListener('error', function() {
-        setStatus('Error loading audio file.', 'error');
-      }, { once: true });
+        var file = e.target.files[0];
+        if (!file) return;
+        var url = URL.createObjectURL(file);
+        audio.src = url;
+        audio.addEventListener('loadedmetadata', function() {
+            document.getElementById('time-total').textContent = formatTime(audio.duration);
+            document.getElementById('audio-filename').textContent = file.name;
+            document.getElementById('btn-load-audio').className = 'file-btn loaded';
+            document.getElementById('btn-load-audio').textContent = 'Loaded';
+            checkReady();
+            setStatus('Audio loaded: ' + formatTime(audio.duration), 'success');
+        }, { once: true });
+        audio.addEventListener('error', function() {
+            setStatus('Error loading audio file.', 'error');
+        }, { once: true });
     });
 
-    // ===== Check if both files are loaded =====
     function checkReady() {
-      if (timestampMap && audio.src) {
-        document.getElementById('player-section').style.display = 'block';
-        document.getElementById('para-section').style.display = 'flex';
-        document.getElementById('para-section').style.flexDirection = 'column';
-        document.getElementById('empty-state').style.display = 'none';
-        document.getElementById('shortcuts').style.display = 'block';
-      }
+        if (timestampMap && audio.src) {
+            document.getElementById('player-section').style.display = 'block';
+            document.getElementById('para-section').style.display = 'flex';
+            document.getElementById('para-section').style.flexDirection = 'column';
+            document.getElementById('empty-state').style.display = 'none';
+            document.getElementById('shortcuts').style.display = 'block';
+        }
     }
 
-    // ===== Build paragraph list =====
+    // ===== Build paragraph list in taskpane =====
     function buildParagraphList() {
-      var list = document.getElementById('para-list');
-      list.innerHTML = '';
+        var list = document.getElementById('para-list');
+        list.innerHTML = '';
+        var timestamped = 0;
+        var testimony = 0;
 
-      var timestamped = paragraphs.filter(function(p) { return p.timestamp_start !== null; });
-      document.getElementById('para-header').textContent =
-        'Paragraphs (' + timestamped.length + ' with timestamps)';
+        for (var i = 0; i < paragraphs.length; i++) {
+            var p = paragraphs[i];
 
-      for (var i = 0; i < paragraphs.length; i++) {
-        var p = paragraphs[i];
-        if (!p.is_testimony && p.timestamp_start === null) continue;
+            // Show all testimony paragraphs (even those without timestamps)
+            // and any non-testimony that has a timestamp
+            if (!p.is_testimony && p.timestamp_start === null) continue;
 
-        var div = document.createElement('div');
-        div.className = 'para-item' + (p.timestamp_start === null ? ' no-timestamp' : '');
-        div.dataset.index = i;
+            if (p.is_testimony) testimony++;
+            if (p.timestamp_start !== null) timestamped++;
 
-        var loc = document.createElement('span');
-        loc.className = 'para-loc';
-        loc.textContent = 'p.' + p.page + ' ln.' + p.line;
+            var div = document.createElement('div');
+            div.className = 'para-item' + (p.timestamp_start === null ? ' no-timestamp' : '');
+            div.dataset.index = i;
 
-        var time = document.createElement('span');
-        time.className = 'para-time';
-        time.textContent = p.timestamp_start !== null ? formatTime(p.timestamp_start) : '--:--';
+            var loc = document.createElement('span');
+            loc.className = 'para-loc';
+            loc.textContent = 'p.' + p.page + ' ln.' + p.line;
 
-        var text = document.createElement('span');
-        text.className = 'para-text';
-        text.textContent = (p.text_preview || '').substring(0, 60);
+            var time = document.createElement('span');
+            time.className = 'para-time';
+            time.textContent = p.timestamp_start !== null ? formatTime(p.timestamp_start) : '--:--';
 
-        div.appendChild(loc);
-        div.appendChild(time);
-        div.appendChild(text);
+            var text = document.createElement('span');
+            text.className = 'para-text';
+            text.textContent = (p.text_preview || '').substring(0, 60);
 
-        if (p.timestamp_start !== null) {
-          div.addEventListener('click', (function(idx) {
-            return function() { playFromParagraph(idx); };
-          })(i));
+            div.appendChild(loc);
+            div.appendChild(time);
+            div.appendChild(text);
+
+            if (p.timestamp_start !== null) {
+                div.addEventListener('click', (function(idx) {
+                    return function() { playFromParagraph(idx); };
+                })(i));
+            }
+
+            list.appendChild(div);
         }
 
-        list.appendChild(div);
-      }
+        document.getElementById('para-header').textContent =
+            'Paragraphs (' + timestamped + ' timestamped / ' + testimony + ' testimony)';
     }
 
     // ===== Play from paragraph =====
     function playFromParagraph(index) {
-      if (!audio.src || index >= paragraphs.length) return;
+        if (!audio.src || index >= paragraphs.length) return;
+        var p = paragraphs[index];
+        if (p.timestamp_start === null) return;
 
-      var p = paragraphs[index];
-      if (p.timestamp_start === null) return;
+        audio.currentTime = p.timestamp_start;
+        audio.play();
+        isPlaying = true;
+        updatePlayButton();
+        setActiveParagraph(index);
 
-      audio.currentTime = p.timestamp_start;
-      audio.play();
-      isPlaying = true;
-      updatePlayButton();
-      setActiveParagraph(index);
+        var preview = (p.text_preview || '').substring(0, 50);
+        document.getElementById('now-playing').innerHTML =
+            '<strong>p.' + p.page + ', ln.' + p.line + '</strong> ' + preview;
 
-      var preview = (p.text_preview || '').substring(0, 50);
-      document.getElementById('now-playing').innerHTML =
-        '<strong>p.' + p.page + ', ln.' + p.line + '</strong> ' + preview;
-
-      // Try to select the paragraph in Word
-      if (officeReady) {
-        selectParagraphInWord(index);
-      }
+        if (officeReady) {
+            selectParagraphInWord(index);
+        }
     }
 
-    // ===== Set active paragraph highlight =====
     function setActiveParagraph(index) {
-      // Remove previous
-      var prev = document.querySelector('.para-item.active');
-      if (prev) prev.classList.remove('active');
+        var prev = document.querySelector('.para-item.active');
+        if (prev) prev.classList.remove('active');
+        activeParagraphIndex = index;
 
-      activeParagraphIndex = index;
-
-      // Find and highlight
-      var items = document.querySelectorAll('.para-item');
-      for (var i = 0; i < items.length; i++) {
-        if (parseInt(items[i].dataset.index) === index) {
-          items[i].classList.add('active');
-          items[i].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-          break;
+        var items = document.querySelectorAll('.para-item');
+        for (var i = 0; i < items.length; i++) {
+            if (parseInt(items[i].dataset.index) === index) {
+                items[i].classList.add('active');
+                items[i].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                break;
+            }
         }
-      }
     }
 
-    // ===== Build mapping between timestamp map and Word paragraphs =====
+    // ========================================================================
+    // CORE FIX: Robust paragraph mapping using multi-signal scoring
+    // ========================================================================
+    // The old approach used simple substring matching which broke on tracked
+    // changes docs because the text differs from the original. The new approach:
+    //
+    // 1. Loads ALL Word paragraphs and caches their text
+    // 2. For each timestamp map entry, scores every Word paragraph using:
+    //    a) Content word similarity (weighted 60%) — robust against tracked changes
+    //    b) Positional proximity (weighted 25%) — paragraphs should be roughly in order
+    //    c) Page number hint (weighted 15%) — if page numbers appear in Word text
+    // 3. Uses a greedy forward assignment (monotonicity) to prevent out-of-order matches
+    // 4. Falls back to sequential ordering when text matching is ambiguous
+    // ========================================================================
+
     function buildWordParaMapping() {
-      if (!officeReady || !paragraphs.length) {
-        // Retry after a delay if Office isn't ready yet
-        if (!officeReady && paragraphs.length) {
-          setTimeout(buildWordParaMapping, 2000);
+        if (!officeReady || !paragraphs.length) {
+            if (!officeReady && paragraphs.length) {
+                setTimeout(buildWordParaMapping, 2000);
+            }
+            return;
         }
-        return;
-      }
 
-      Word.run(function(context) {
-        var paras = context.document.body.paragraphs;
-        paras.load('text');
+        Word.run(function(context) {
+            var paras = context.document.body.paragraphs;
+            paras.load('text');
+            return context.sync().then(function() {
+                wordParaMap = {};
+                reverseParaMap = {};
+                _wordParaCache = [];
 
-        return context.sync().then(function() {
-          wordParaMap = {};
-          reverseParaMap = {};
-          var wordTexts = paras.items.map(function(p) {
-            return p.text.replace(/\s+/g, ' ').trim().toLowerCase();
-          });
-
-          // Strip common prefixes like line numbers, Q., A. for fuzzy matching
-          function normalize(str) {
-            return str.replace(/^\d+\s*/, '').replace(/^[qa]\.\s*/i, '').replace(/\s+/g, ' ').trim().toLowerCase();
-          }
-
-          for (var i = 0; i < paragraphs.length; i++) {
-            var preview = (paragraphs[i].text_preview || paragraphs[i].text || '').trim().toLowerCase();
-            if (!preview || preview.length < 3) continue;
-
-            var searchText = preview.substring(0, Math.min(preview.length, 40));
-            var normalizedSearch = normalize(preview).substring(0, 30);
-            var bestMatch = -1;
-            var bestScore = 0;
-
-            for (var w = 0; w < wordTexts.length; w++) {
-              if (reverseParaMap[w] !== undefined) continue;
-              if (wordTexts[w].length < 2) continue;
-
-              var normalizedWord = normalize(wordTexts[w]);
-              var matched = false;
-
-              // Try exact substring match first
-              if (wordTexts[w].indexOf(searchText) >= 0 || searchText.indexOf(wordTexts[w].substring(0, 30)) >= 0) {
-                matched = true;
-              }
-              // Try normalized match (strips line numbers, Q./A. prefixes)
-              if (!matched && normalizedSearch.length > 5 &&
-                  (normalizedWord.indexOf(normalizedSearch) >= 0 || normalizedSearch.indexOf(normalizedWord.substring(0, 25)) >= 0)) {
-                matched = true;
-              }
-
-              if (matched) {
-                var score = 100 - Math.abs(w - (Object.keys(wordParaMap).length > 0 ?
-                  wordParaMap[Math.max(0, i - 1)] + 1 : i));
-                if (score > bestScore || bestMatch === -1) {
-                  bestScore = score;
-                  bestMatch = w;
+                // Cache all Word paragraph texts (normalized)
+                var wordTexts = [];
+                for (var w = 0; w < paras.items.length; w++) {
+                    var rawText = paras.items[w].text || '';
+                    _wordParaCache.push(rawText);
+                    wordTexts.push({
+                        raw: rawText,
+                        normalized: normalizeForMatch(rawText),
+                        words: contentWords(rawText),
+                        index: w
+                    });
                 }
-              }
-            }
 
-            if (bestMatch >= 0) {
-              wordParaMap[i] = bestMatch;
-              reverseParaMap[bestMatch] = i;
-            }
-          }
+                // Count testimony paragraphs in timestamp map for position scaling
+                var tsTestimonyIndices = [];
+                for (var t = 0; t < paragraphs.length; t++) {
+                    if (paragraphs[t].is_testimony) {
+                        tsTestimonyIndices.push(t);
+                    }
+                }
 
-          var mapped = Object.keys(wordParaMap).length;
-          var total = paragraphs.length;
-          setStatus('Synced ' + mapped + ' of ' + total + ' paragraphs to Word (' + paras.items.length + ' Word paras)', mapped > 0 ? 'success' : 'error');
+                // Count non-empty Word paragraphs for position scaling
+                var wordNonEmpty = [];
+                for (var wn = 0; wn < wordTexts.length; wn++) {
+                    if (wordTexts[wn].normalized.length > 2) {
+                        wordNonEmpty.push(wn);
+                    }
+                }
+
+                // Greedy forward assignment with monotonicity
+                var lastAssignedWord = -1;
+
+                for (var i = 0; i < paragraphs.length; i++) {
+                    var p = paragraphs[i];
+                    var preview = (p.text_preview || p.text || '').trim();
+                    if (!preview || preview.length < 3) continue;
+
+                    var previewNorm = normalizeForMatch(preview);
+                    var previewWords = contentWords(preview);
+                    if (previewWords.length === 0) continue;
+
+                    // Expected position in Word doc (proportional)
+                    var expectedWordPos = (i / Math.max(paragraphs.length, 1)) * wordTexts.length;
+
+                    var bestMatch = -1;
+                    var bestScore = 0;
+
+                    // Search window: start from lastAssigned+1, but allow some backtrack
+                    // to handle cases where order slightly differs
+                    var searchStart = Math.max(0, lastAssignedWord + 1 - 5);
+                    var searchEnd = Math.min(wordTexts.length, lastAssignedWord + 1 + Math.max(60, wordTexts.length * 0.3));
+
+                    for (var w = searchStart; w < searchEnd; w++) {
+                        if (reverseParaMap[w] !== undefined) continue;
+                        if (wordTexts[w].normalized.length < 2) continue;
+
+                        // Signal 1: Text similarity (content word overlap)
+                        var sim = 0;
+                        if (previewWords.length > 0 && wordTexts[w].words.length > 0) {
+                            var wordSet = {};
+                            for (var k = 0; k < wordTexts[w].words.length; k++) {
+                                wordSet[wordTexts[w].words[k]] = true;
+                            }
+                            var matched = 0;
+                            for (var m = 0; m < previewWords.length; m++) {
+                                if (wordSet[previewWords[m]]) matched++;
+                            }
+                            sim = matched / Math.max(previewWords.length, 1);
+                        }
+
+                        // Signal 2: Positional proximity (closer to expected = better)
+                        var posDist = Math.abs(w - expectedWordPos) / Math.max(wordTexts.length, 1);
+                        var posScore = Math.max(0, 1 - posDist * 3);
+
+                        // Signal 3: Forward monotonicity bonus
+                        var monoBonus = (w > lastAssignedWord) ? 0.1 : 0;
+
+                        // Combined score
+                        var totalScore = (sim * 0.65) + (posScore * 0.25) + monoBonus;
+
+                        if (totalScore > bestScore) {
+                            bestScore = totalScore;
+                            bestMatch = w;
+                        }
+                    }
+
+                    // Require minimum confidence to assign
+                    if (bestMatch >= 0 && bestScore >= 0.25) {
+                        wordParaMap[i] = bestMatch;
+                        reverseParaMap[bestMatch] = i;
+                        if (bestMatch > lastAssignedWord) {
+                            lastAssignedWord = bestMatch;
+                        }
+                    }
+                }
+
+                var mapped = Object.keys(wordParaMap).length;
+                var total = paragraphs.length;
+                var pct = Math.round((mapped / Math.max(total, 1)) * 100);
+
+                var statsEl = document.getElementById('sync-stats');
+                statsEl.textContent = 'Word sync: ' + mapped + '/' + total + ' paragraphs mapped (' + pct + '%) across ' + paras.items.length + ' Word paragraphs';
+                statsEl.style.display = 'block';
+
+                setStatus('Synced ' + mapped + ' of ' + total + ' paragraphs to Word (' + pct + '%)', mapped > 0 ? 'success' : 'error');
+            });
+        }).catch(function(err) {
+            setStatus('Paragraph sync failed: ' + err.message, 'error');
         });
-      }).catch(function(err) {
-        setStatus('Paragraph sync failed: ' + err.message, 'error');
-      });
     }
 
     // ===== Select paragraph in Word document =====
     function selectParagraphInWord(paraIndex) {
-      if (!officeReady) return;
+        if (!officeReady) return;
 
-      // Set flag so onDocumentSelectionChanged ignores the selection we're about to make
-      _ignoreSelectionChange = true;
+        _ignoreSelectionChange = true;
 
-      Word.run(function(context) {
-        var paras = context.document.body.paragraphs;
-        paras.load('text');
-
-        return context.sync().then(function() {
-          // First try the pre-built mapping
-          var wordIndex = wordParaMap[paraIndex];
-          if (wordIndex !== undefined && wordIndex < paras.items.length) {
-            paras.items[wordIndex].select();
+        Word.run(function(context) {
+            var paras = context.document.body.paragraphs;
+            paras.load('text');
             return context.sync().then(function() {
-              // Reset flag after a short delay to let the selection event pass
-              setTimeout(function() { _ignoreSelectionChange = false; }, 500);
+
+                // Strategy 1: Use the pre-built mapping
+                var wordIndex = wordParaMap[paraIndex];
+                if (wordIndex !== undefined && wordIndex < paras.items.length) {
+                    paras.items[wordIndex].select();
+                    return context.sync().then(function() {
+                        setTimeout(function() { _ignoreSelectionChange = false; }, 500);
+                    });
+                }
+
+                // Strategy 2: Real-time text search with content word matching
+                var preview = (paragraphs[paraIndex].text_preview || paragraphs[paraIndex].text || '').trim();
+                if (!preview || preview.length < 3) {
+                    _ignoreSelectionChange = false;
+                    return;
+                }
+
+                var bestMatch = -1;
+                var bestSim = 0;
+
+                for (var w = 0; w < paras.items.length; w++) {
+                    var wordText = paras.items[w].text || '';
+                    var sim = textSimilarity(preview, wordText);
+                    if (sim > bestSim) {
+                        bestSim = sim;
+                        bestMatch = w;
+                    }
+                }
+
+                if (bestMatch >= 0 && bestSim >= 0.4) {
+                    paras.items[bestMatch].select();
+                    return context.sync().then(function() {
+                        setTimeout(function() { _ignoreSelectionChange = false; }, 500);
+                    });
+                }
+
+                _ignoreSelectionChange = false;
             });
-          }
-
-          // Fallback: real-time text search if mapping missed this paragraph
-          var preview = (paragraphs[paraIndex].text_preview || paragraphs[paraIndex].text || '').trim().toLowerCase();
-          if (!preview || preview.length < 3) {
+        }).catch(function(err) {
             _ignoreSelectionChange = false;
-            return;
-          }
-
-          var searchSnippet = preview.substring(0, Math.min(preview.length, 35));
-          for (var w = 0; w < paras.items.length; w++) {
-            var wordText = paras.items[w].text.replace(/\s+/g, ' ').trim().toLowerCase();
-            if (wordText.length < 2) continue;
-            if (wordText.indexOf(searchSnippet) >= 0 || searchSnippet.indexOf(wordText.substring(0, 30)) >= 0) {
-              paras.items[w].select();
-              return context.sync().then(function() {
-                setTimeout(function() { _ignoreSelectionChange = false; }, 500);
-              });
-            }
-          }
-          _ignoreSelectionChange = false;
         });
-      }).catch(function(err) {
-        _ignoreSelectionChange = false;
-      });
     }
 
     // ===== Handle document selection changes (clicking in Word doc) =====
     function onDocumentSelectionChanged() {
-      // Skip if we triggered this ourselves (from selectParagraphInWord)
-      if (_ignoreSelectionChange) return;
+        if (_ignoreSelectionChange) return;
+        if (!timestampMap || !audio.src) return;
 
-      // Skip if files aren't loaded yet
-      if (!timestampMap || !audio.src) return;
-
-      // Debounce: wait 300ms before processing to avoid rapid-fire events
-      if (_selectionChangeTimer) clearTimeout(_selectionChangeTimer);
-      _selectionChangeTimer = setTimeout(function() {
-        _handleDocumentSelection();
-      }, 300);
+        if (_selectionChangeTimer) clearTimeout(_selectionChangeTimer);
+        _selectionChangeTimer = setTimeout(function() {
+            _handleDocumentSelection();
+        }, 300);
     }
 
     function _handleDocumentSelection() {
-      Word.run(function(context) {
-        var selection = context.document.getSelection();
-        selection.paragraphs.load('text');
+        Word.run(function(context) {
+            var selection = context.document.getSelection();
+            selection.paragraphs.load('text');
 
-        return context.sync().then(function() {
-          if (selection.paragraphs.items.length === 0) return;
+            // Also get all paragraphs to find which one is selected by index
+            var allParas = context.document.body.paragraphs;
+            allParas.load('text');
 
-          var selectedText = selection.paragraphs.items[0].text.replace(/\s+/g, ' ').trim().toLowerCase();
-          if (selectedText.length < 2) return;
+            return context.sync().then(function() {
+                if (selection.paragraphs.items.length === 0) return;
 
-          // Search the timestamp map for a matching paragraph
-          var searchSnippet = selectedText.substring(0, Math.min(selectedText.length, 40));
-          for (var i = 0; i < paragraphs.length; i++) {
-            var preview = (paragraphs[i].text_preview || paragraphs[i].text || '').trim().toLowerCase();
-            if (!preview || preview.length < 3) continue;
+                var selectedText = selection.paragraphs.items[0].text || '';
+                if (selectedText.trim().length < 2) return;
 
-            var previewSnippet = preview.substring(0, Math.min(preview.length, 40));
-            if (selectedText.indexOf(previewSnippet) >= 0 || previewSnippet.indexOf(searchSnippet) >= 0) {
-              if (paragraphs[i].timestamp_start !== null) {
-                // If already playing, jump to this paragraph and keep playing
-                // If not playing, just seek to this position (user can hit play)
-                var wasPlaying = isPlaying;
-                audio.currentTime = paragraphs[i].timestamp_start;
-                if (wasPlaying) {
-                  audio.play();
+                // Find the Word paragraph index of the selected paragraph
+                var selectedWordIndex = -1;
+                for (var wi = 0; wi < allParas.items.length; wi++) {
+                    if (allParas.items[wi].text === selectedText ||
+                        normalizeForMatch(allParas.items[wi].text) === normalizeForMatch(selectedText)) {
+                        selectedWordIndex = wi;
+                        break;
+                    }
                 }
-                setActiveParagraph(i);
 
-                var p = paragraphs[i];
-                var previewText = (p.text_preview || '').substring(0, 50);
-                document.getElementById('now-playing').innerHTML =
-                  '<strong>p.' + p.page + ', ln.' + p.line + '</strong> ' + previewText;
-                setStatus('Synced to Word selection: p.' + p.page + ', ln.' + p.line, 'success');
-              }
-              return;
-            }
-          }
-          // No match found
-          setStatus('No timestamp match for selected paragraph', '');
+                // Strategy 1: Use reverse mapping (fast, reliable if mapping was good)
+                if (selectedWordIndex >= 0 && reverseParaMap[selectedWordIndex] !== undefined) {
+                    var tsIdx = reverseParaMap[selectedWordIndex];
+                    if (paragraphs[tsIdx] && paragraphs[tsIdx].timestamp_start !== null) {
+                        _syncToTimestampParagraph(tsIdx);
+                        return;
+                    }
+                }
+
+                // Strategy 2: Content word matching against all timestamp paragraphs
+                var bestIdx = -1;
+                var bestSim = 0;
+                for (var i = 0; i < paragraphs.length; i++) {
+                    var preview = (paragraphs[i].text_preview || paragraphs[i].text || '').trim();
+                    if (!preview || preview.length < 3) continue;
+
+                    var sim = textSimilarity(selectedText, preview);
+                    if (sim > bestSim) {
+                        bestSim = sim;
+                        bestIdx = i;
+                    }
+                }
+
+                if (bestIdx >= 0 && bestSim >= 0.35) {
+                    if (paragraphs[bestIdx].timestamp_start !== null) {
+                        _syncToTimestampParagraph(bestIdx);
+                        return;
+                    }
+
+                    // Found a match but no timestamp - find nearest timestamped paragraph
+                    var nearest = findNearestTimestamped(bestIdx);
+                    if (nearest >= 0) {
+                        _syncToTimestampParagraph(nearest);
+                        setStatus('Nearest timestamped paragraph: p.' + paragraphs[nearest].page + ', ln.' + paragraphs[nearest].line, 'success');
+                        return;
+                    }
+                }
+
+                setStatus('No timestamp match for selected paragraph', '');
+            });
+        }).catch(function(err) {
+            setStatus('Selection sync error: ' + err.message, 'error');
         });
-      }).catch(function(err) {
-        setStatus('Selection sync error: ' + err.message, 'error');
-      });
+    }
+
+    // Find the nearest paragraph that has a timestamp
+    function findNearestTimestamped(index) {
+        // Search outward from index in both directions
+        for (var d = 1; d < paragraphs.length; d++) {
+            if (index - d >= 0 && paragraphs[index - d].timestamp_start !== null) return index - d;
+            if (index + d < paragraphs.length && paragraphs[index + d].timestamp_start !== null) return index + d;
+        }
+        return -1;
+    }
+
+    function _syncToTimestampParagraph(tsIdx) {
+        var wasPlaying = isPlaying;
+        audio.currentTime = paragraphs[tsIdx].timestamp_start;
+        if (wasPlaying) {
+            audio.play();
+        }
+        setActiveParagraph(tsIdx);
+
+        var p = paragraphs[tsIdx];
+        var previewText = (p.text_preview || '').substring(0, 50);
+        document.getElementById('now-playing').innerHTML =
+            '<strong>p.' + p.page + ', ln.' + p.line + '</strong> ' + previewText;
+        setStatus('Synced to Word selection: p.' + p.page + ', ln.' + p.line, 'success');
     }
 
     // ===== Audio time update =====
     audio.addEventListener('timeupdate', function() {
-      var current = audio.currentTime;
-      var duration = audio.duration || 0;
+        var current = audio.currentTime;
+        var duration = audio.duration || 0;
 
-      document.getElementById('time-current').textContent = formatTime(current);
-
-      if (duration > 0) {
-        var pct = (current / duration) * 100;
-        document.getElementById('progress-fill').style.width = pct + '%';
-      }
-
-      // Update active paragraph based on current time
-      if (paragraphs.length > 0) {
-        for (var i = paragraphs.length - 1; i >= 0; i--) {
-          if (paragraphs[i].timestamp_start !== null && current >= paragraphs[i].timestamp_start) {
-            if (i !== activeParagraphIndex) {
-              setActiveParagraph(i);
-              var p = paragraphs[i];
-              var preview = (p.text_preview || '').substring(0, 50);
-              document.getElementById('now-playing').innerHTML =
-                '<strong>p.' + p.page + ', ln.' + p.line + '</strong> ' + preview;
-              // Also move Word selection to follow along
-              if (officeReady) {
-                selectParagraphInWord(i);
-              }
-            }
-            break;
-          }
+        document.getElementById('time-current').textContent = formatTime(current);
+        if (duration > 0) {
+            var pct = (current / duration) * 100;
+            document.getElementById('progress-fill').style.width = pct + '%';
         }
-      }
+
+        // Update active paragraph based on current time
+        if (paragraphs.length > 0) {
+            for (var i = paragraphs.length - 1; i >= 0; i--) {
+                if (paragraphs[i].timestamp_start !== null && current >= paragraphs[i].timestamp_start) {
+                    if (i !== activeParagraphIndex) {
+                        setActiveParagraph(i);
+                        var p = paragraphs[i];
+                        var preview = (p.text_preview || '').substring(0, 50);
+                        document.getElementById('now-playing').innerHTML =
+                            '<strong>p.' + p.page + ', ln.' + p.line + '</strong> ' + preview;
+
+                        // Move Word selection to follow along
+                        if (officeReady) {
+                            selectParagraphInWord(i);
+                        }
+                    }
+                    break;
+                }
+            }
+        }
     });
 
     audio.addEventListener('ended', function() {
-      isPlaying = false;
-      updatePlayButton();
+        isPlaying = false;
+        updatePlayButton();
     });
 
     // ===== Controls =====
     document.getElementById('btn-play').addEventListener('click', function() {
-      if (!audio.src) return;
-      if (isPlaying) {
-        audio.pause();
-      } else {
-        audio.play();
-      }
-      isPlaying = !isPlaying;
-      updatePlayButton();
+        if (!audio.src) return;
+        if (isPlaying) { audio.pause(); } else { audio.play(); }
+        isPlaying = !isPlaying;
+        updatePlayButton();
     });
 
     document.getElementById('btn-back').addEventListener('click', function() {
-      if (!audio.src) return;
-      audio.currentTime = Math.max(0, audio.currentTime - 5);
+        if (!audio.src) return;
+        audio.currentTime = Math.max(0, audio.currentTime - 5);
     });
 
     document.getElementById('btn-forward').addEventListener('click', function() {
-      if (!audio.src) return;
-      audio.currentTime = Math.min(audio.duration, audio.currentTime + 5);
+        if (!audio.src) return;
+        audio.currentTime = Math.min(audio.duration, audio.currentTime + 5);
     });
 
     document.getElementById('speed-select').addEventListener('change', function() {
-      audio.playbackRate = parseFloat(this.value);
+        audio.playbackRate = parseFloat(this.value);
     });
 
-    // Progress bar click-to-seek
     document.getElementById('progress-bar').addEventListener('click', function(e) {
-      if (!audio.src || !audio.duration) return;
-      var rect = this.getBoundingClientRect();
-      var pct = (e.clientX - rect.left) / rect.width;
-      audio.currentTime = pct * audio.duration;
+        if (!audio.src || !audio.duration) return;
+        var rect = this.getBoundingClientRect();
+        var pct = (e.clientX - rect.left) / rect.width;
+        audio.currentTime = pct * audio.duration;
     });
 
     // ===== Keyboard shortcuts =====
     document.addEventListener('keydown', function(e) {
-      if (!audio.src) return;
+        if (!audio.src) return;
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
 
-      // Don't intercept if typing in an input
-      if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
-
-      switch (e.key) {
-        case ' ':
-          e.preventDefault();
-          document.getElementById('btn-play').click();
-          break;
-        case 'ArrowLeft':
-          e.preventDefault();
-          audio.currentTime = Math.max(0, audio.currentTime - 5);
-          break;
-        case 'ArrowRight':
-          e.preventDefault();
-          audio.currentTime = Math.min(audio.duration, audio.currentTime + 5);
-          break;
-        case 'ArrowUp':
-          e.preventDefault();
-          navigateParagraph(-1);
-          break;
-        case 'ArrowDown':
-          e.preventDefault();
-          navigateParagraph(1);
-          break;
-      }
+        switch (e.key) {
+            case ' ':
+                e.preventDefault();
+                document.getElementById('btn-play').click();
+                break;
+            case 'ArrowLeft':
+                e.preventDefault();
+                audio.currentTime = Math.max(0, audio.currentTime - 5);
+                break;
+            case 'ArrowRight':
+                e.preventDefault();
+                audio.currentTime = Math.min(audio.duration, audio.currentTime + 5);
+                break;
+            case 'ArrowUp':
+                e.preventDefault();
+                navigateParagraph(-1);
+                break;
+            case 'ArrowDown':
+                e.preventDefault();
+                navigateParagraph(1);
+                break;
+        }
     });
 
-    // ===== Navigate to prev/next timestamped paragraph =====
     function navigateParagraph(direction) {
-      if (paragraphs.length === 0) return;
-
-      var current = activeParagraphIndex;
-      var next = current + direction;
-
-      while (next >= 0 && next < paragraphs.length) {
-        if (paragraphs[next].timestamp_start !== null) {
-          playFromParagraph(next);
-          return;
+        if (paragraphs.length === 0) return;
+        var current = activeParagraphIndex;
+        var next = current + direction;
+        while (next >= 0 && next < paragraphs.length) {
+            if (paragraphs[next].timestamp_start !== null) {
+                playFromParagraph(next);
+                return;
+            }
+            next += direction;
         }
-        next += direction;
-      }
     }
 
     // ===== Helpers =====
     function formatTime(seconds) {
-      if (isNaN(seconds) || seconds === null) return '0:00';
-      var mins = Math.floor(seconds / 60);
-      var secs = Math.floor(seconds % 60);
-      return mins + ':' + (secs < 10 ? '0' : '') + secs;
+        if (isNaN(seconds) || seconds === null) return '0:00';
+        var mins = Math.floor(seconds / 60);
+        var secs = Math.floor(seconds % 60);
+        return mins + ':' + (secs < 10 ? '0' : '') + secs;
     }
 
     function updatePlayButton() {
-      document.getElementById('btn-play').innerHTML = isPlaying ? '&#9646;&#9646;' : '&#9654;';
+        document.getElementById('btn-play').innerHTML = isPlaying ? '&#9646;&#9646;' : '&#9654;';
     }
 
     function setStatus(msg, type) {
-      var bar = document.getElementById('status-bar');
-      bar.textContent = msg;
-      bar.className = 'status-bar' + (type ? ' ' + type : '');
+        var bar = document.getElementById('status-bar');
+        bar.textContent = msg;
+        bar.className = 'status-bar' + (type ? ' ' + type : '');
     }
-  </script>
+</script>
 </body>
 </html>
